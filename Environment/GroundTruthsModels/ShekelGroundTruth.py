@@ -22,6 +22,7 @@ class GroundTruth(object):
         self.grid = 1.0 - grid
         self.xy_size = np.array([self.grid.shape[1]/self.grid.shape[0]*10, 10])
         self.is_bounded = is_bounded
+        self.dt = 0.01
 
         # Peaks positions bounded from 1 to 9 in every axis
         self.number_of_peaks = np.random.randint(1, self.max_number_of_peaks+1)
@@ -90,6 +91,14 @@ class GroundTruth(object):
         im = plt.plot(self.A[:, 0]*self.grid.shape[0]/10,
                       self.A[:, 1]*self.grid.shape[1]/10, 'hk', )
         plt.show()
+
+    def step(self):
+        """ Move every maximum with a random walk noise """
+
+        self.A += self.dt*(2*(np.random.rand(*self.A.shape)-0.5) * self.xy_size * 0.9 + self.xy_size*0.1)
+        self.create_field()
+
+        pass
 
 
 if __name__ == "__main__":
