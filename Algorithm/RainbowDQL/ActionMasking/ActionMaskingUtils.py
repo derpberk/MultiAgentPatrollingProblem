@@ -2,12 +2,13 @@ import numpy as np
 
 class SafeActionMasking:
 
-	def __init__(self, action_space_dim: int) -> None:
+	def __init__(self, action_space_dim: int, movement_length: float) -> None:
 		""" Safe Action Masking """
 
 		self.navigation_map = None
 		self.position = None
 		self.angle_set = np.linspace(0, 2 * np.pi, action_space_dim, endpoint=False)
+		self.movement_length = movement_length
 
 	def update_state(self, position: np.ndarray, new_navigation_map: np.ndarray = None):
 		""" Update the navigation map """
@@ -48,7 +49,9 @@ class NoGoBackMasking:
 		if self.previous_action is None:
 			self.previous_action = np.argmax(q_values)
 		else:
-			q_values[self.previous_action] = -np.inf
+			
+			return_action = (self.previous_action + len(q_values) // 2) % len(q_values)
+			q_values[return_action] = -np.inf
 
 		return q_values, np.argmax(q_values)
 

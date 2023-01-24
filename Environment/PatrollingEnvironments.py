@@ -274,6 +274,10 @@ class DiscreteFleet:
 	def get_distance_matrix(self):
 		return distance_matrix(self.agent_positions, self.agent_positions)
 
+	def get_positions(self):
+
+		return np.asarray([veh.position for veh in self.vehicles])
+
 
 class MultiAgentPatrolling(gym.Env):
 
@@ -331,6 +335,7 @@ class MultiAgentPatrolling(gym.Env):
 		# Fleet of N vehicles
 		self.optimal_connection_distance = optimal_connection_distance
 		self.max_connection_distance = max_connection_distance
+		self.movement_length = movement_length
 
 		# Create the fleets 
 		self.fleet = DiscreteFleet(number_of_vehicles=self.number_of_agents,

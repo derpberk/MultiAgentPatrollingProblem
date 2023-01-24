@@ -8,7 +8,7 @@ from Algorithm.RainbowDQL.ReplayBuffers.ReplayBuffers import PrioritizedReplayBu
 from Algorithm.RainbowDQL.Networks.network import DuelingVisualNetwork, NoisyDuelingVisualNetwork, DistributionalVisualNetwork
 import torch.nn.functional as F
 from tqdm import trange
-from Algorithm.RainbowDQL.ActionMasking.ActionMaskingUtility import SafeActionMasking, NoGoBackMasking
+from Algorithm.RainbowDQL.ActionMasking.ActionMaskingUtils import NoGoBackMasking, SafeActionMasking
 
 
 class MultiAgentDuelingDQNAgent:
@@ -136,7 +136,7 @@ class MultiAgentDuelingDQNAgent:
 			self.dqn_target.reset_noise()
 
 		# Masking utilities #
-		self.safe_masking_module = SafeActionMasking(action_space_dim = action_dim)
+		self.safe_masking_module = SafeActionMasking(action_space_dim = action_dim, movement_length = self.env.movement_length)
 		self.nogoback_masking_modules = {i: NoGoBackMasking() for i in range(self.env.number_of_agents)}
 
 	# TODO: Implement an annealed Learning Rate (see:
@@ -159,19 +159,19 @@ class MultiAgentDuelingDQNAgent:
 		""" Select an action masked to avoid collisions and so """
 
 		# Update the state of the safety module #
-		self.safe_masking_module.update_state(agent_position = position, new_navigation_map = state[0])
+		self.safe_masking_module.update_state(position = position, new_navigation_map = state[0])
 
 		if self.epsilon > np.random.rand() and not self.noisy:
 			
 			# Compute randomly the action #
 			q_values, _ = self.safe_masking_module.mask_action(q_values = None)
-			_, selected_action = self.nogoback_masking_modules[agent_id].mask_action(q_values = q_values)
+			q_values, selected_action = self.nogoback_masking_modules[agent_id].mask_action(q_values = q_values)
 			self.nogoback_masking_modules[agent_id].update_last_action(selected_action)
 
 		else:
 			q_values = self.dqn(torch.FloatTensor(state).unsqueeze(0).to(self.device)).detach().cpu().numpy()
-			q_values, _ = self.safe_masking_module.mask_action(q_values = q_values)
-			_, selected_action = self.nogoback_masking_modules[agent_id].mask_action(q_values = q_values)
+			q_values, _ = self.safe_masking_module.mask_action(q_values = q_values.flatten())
+			q_values, selected_action = self.nogoback_masking_modules[agent_id].mask_action(q_values = q_values)
 			self.nogoback_masking_modules[agent_id].update_last_action(selected_action)
 		
 		return selected_action
@@ -303,6 +303,8 @@ class MultiAgentDuelingDQNAgent:
 
 				# Process the agent step #
 				next_state, reward, done = self.step(actions)
+
+				print(reward)
 
 				for agent_id in next_state.keys():
 
