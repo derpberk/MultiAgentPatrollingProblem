@@ -8,6 +8,7 @@ from Algorithm.RainbowDQL.ReplayBuffers.ReplayBuffers import PrioritizedReplayBu
 from Algorithm.RainbowDQL.Networks.network import DuelingVisualNetwork, NoisyDuelingVisualNetwork, DistributionalVisualNetwork
 import torch.nn.functional as F
 from tqdm import trange
+from Algorithm.RainbowDQL.ActionMasking.ActionMaskingUtility import SafeActionMasking, NoGoBackMasking
 
 
 class MultiAgentDuelingDQNAgent:
@@ -40,6 +41,7 @@ class MultiAgentDuelingDQNAgent:
 			log_name="Experiment",
 			save_every=None,
 			train_every=1,
+			masked_actions= False
 	):
 		"""
 
@@ -86,6 +88,7 @@ class MultiAgentDuelingDQNAgent:
 		self.v_interval = v_interval
 		self.num_atoms = num_atoms
 		self.train_every = train_every
+		self.masked_actions = masked_actions
 
 		""" Automatic selection of the device """
 		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -132,6 +135,10 @@ class MultiAgentDuelingDQNAgent:
 			self.dqn.reset_noise()
 			self.dqn_target.reset_noise()
 
+		# Masking utilities #
+		self.safe_masking_module = SafeActionMasking(action_space_dim = action_dim)
+		self.nogoback_masking_modules = {i: NoGoBackMasking() for i in range(self.env.number_of_agents)}
+
 	# TODO: Implement an annealed Learning Rate (see:
 	#  https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.ReduceLROnPlateau.html#torch.optim.lr_scheduler.ReduceLROnPlateau)
 
@@ -148,11 +155,40 @@ class MultiAgentDuelingDQNAgent:
 
 		return selected_action
 
+	def predict_masked_action(self, state: np.ndarray, agent_id: int, position: np.ndarray):
+		""" Select an action masked to avoid collisions and so """
+
+		# Update the state of the safety module #
+		self.safe_masking_module.update_state(agent_position = position, new_navigation_map = state[0])
+
+		if self.epsilon > np.random.rand() and not self.noisy:
+			
+			# Compute randomly the action #
+			q_values, _ = self.safe_masking_module.mask_action(q_values = None)
+			_, selected_action = self.nogoback_masking_modules[agent_id].mask_action(q_values = q_values)
+			self.nogoback_masking_modules[agent_id].update_last_action(selected_action)
+
+		else:
+			q_values = self.dqn(torch.FloatTensor(state).unsqueeze(0).to(self.device)).detach().cpu().numpy()
+			q_values, _ = self.safe_masking_module.mask_action(q_values = q_values)
+			_, selected_action = self.nogoback_masking_modules[agent_id].mask_action(q_values = q_values)
+			self.nogoback_masking_modules[agent_id].update_last_action(selected_action)
+		
+		return selected_action
+
+
 	def select_action(self, states: dict) -> dict:
 
 		actions = {agent_id: self.predict_action(state) for agent_id, state in states.items()}
 
 		return actions
+
+	def select_masked_action(self, states: dict, positions: np.ndarray):
+
+		actions = {agent_id: self.predict_masked_action(state=state, agent_id=agent_id, position=positions[agent_id]) for agent_id, state in states.items()}
+
+		return actions
+
 
 	def step(self, action: dict) -> Tuple[np.ndarray, np.float64, bool]:
 		"""Take an action and return the response of the env."""
@@ -258,7 +294,11 @@ class MultiAgentDuelingDQNAgent:
 				steps += 1
 
 				# Select the action using the current policy
-				actions = self.select_action(state)
+				if not self.masked_actions:
+					actions = self.select_action(state)
+				else:
+					actions = self.select_masked_action(states=state, positions=self.env.fleet.get_positions())
+
 				actions = {agent_id: action for agent_id, action in actions.items() if not done[agent_id]}
 
 				# Process the agent step #
