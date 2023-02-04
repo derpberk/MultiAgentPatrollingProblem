@@ -336,6 +336,7 @@ class MultiAgentPatrolling(gym.Env):
 		self.optimal_connection_distance = optimal_connection_distance
 		self.max_connection_distance = max_connection_distance
 		self.movement_length = movement_length
+		
 
 		# Create the fleets 
 		self.fleet = DiscreteFleet(number_of_vehicles=self.number_of_agents,
@@ -379,6 +380,8 @@ class MultiAgentPatrolling(gym.Env):
 		else:
 			self.frame_stacking = None
 			self.observation_space = gym.spaces.Box(low=0.0, high=1.0, shape=(5, *self.scenario_map.shape), dtype=np.float32)
+
+		self.state_space = gym.spaces.Box(low=0.0, high=1.0, shape=(4, *self.scenario_map.shape), dtype=np.float32)
 
 		
 		self.individual_action_state = gym.spaces.Discrete(8)
@@ -644,6 +647,22 @@ class MultiAgentPatrolling(gym.Env):
 		assert 0 <= ind < self.number_of_agents, 'Not enough agents!'
 
 		return np.array(list(map(self.fleet.vehicles[ind].check_action, np.arange(0, 8))))
+	
+	def start_recording(self, trajectory_length=50):
+		""" Start recording the environment trajectories """
+
+		self.recording = True
+		self.recording_frames = []
+
+	def stop_recording(self, path, episode):
+		""" Stop recording the environment trajectories. Save the data in the current directory. """
+
+		self.recording = False
+		self.recording_frames = np.array(self.recording_frames).astype(np.float16)
+		# Save the data in the current directory with the given path and name
+		np.save(path + f'_{episode}', self.recording_frames)
+
+
 
 
 if __name__ == '__main__':
@@ -669,7 +688,7 @@ if __name__ == '__main__':
 	                           attrittion=0.1,
 	                           networked_agents=False,
 							   reward_type='model_changes',
-							   ground_truth_type='shekel',
+							   ground_truth_type='algae_bloom',
 	                           obstacles=True,
 							   frame_stacking=1,
 							   state_index_stacking=(2,3,4)
@@ -696,6 +715,7 @@ if __name__ == '__main__':
 		s, r, done, _ = env.step(action)
 
 		env.render()
+
 		print(r)
 
 
