@@ -9,7 +9,7 @@ from Algorithm.RainbowDQL.Networks.network import DuelingVisualNetwork, NoisyDue
 import torch.nn.functional as F
 from tqdm import trange
 from Algorithm.RainbowDQL.ActionMasking.ActionMaskingUtils import NoGoBackMasking, SafeActionMasking
-
+import time
 
 class MultiAgentDuelingDQNAgent:
 
@@ -298,13 +298,11 @@ class MultiAgentDuelingDQNAgent:
 					actions = self.select_action(state)
 				else:
 					actions = self.select_masked_action(states=state, positions=self.env.fleet.get_positions())
-
+					
 				actions = {agent_id: action for agent_id, action in actions.items() if not done[agent_id]}
 
 				# Process the agent step #
 				next_state, reward, done = self.step(actions)
-
-				print(reward)
 
 				for agent_id in next_state.keys():
 
