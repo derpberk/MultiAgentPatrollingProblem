@@ -6,8 +6,6 @@ from Algorithm.RainbowDQL.Agent.DuelingDQNAgent import MultiAgentDuelingDQNAgent
 import numpy as np
 
 N = 4
-
-N = 4
 sc_map = np.genfromtxt('Environment/Maps/example_map.csv', delimiter=',')
 visitable_locations = np.vstack(np.where(sc_map != 0)).T
 random_index = np.random.choice(np.arange(0,len(visitable_locations)), N, replace=False)
@@ -33,17 +31,17 @@ env = MultiAgentPatrolling(scenario_map=sc_map,
 
 multiagent = MultiAgentDuelingDQNAgent(env=env,
                                        memory_size=int(1E5),
-                                       batch_size=64,
+                                       batch_size=128,
                                        target_update=1000,
                                        soft_update=False,
                                        tau=0.0001,
                                        epsilon_values=[1.0, 0.1],
                                        epsilon_interval=[0.0, 0.33],
-                                       learning_starts=0,
+                                       learning_starts=100,
                                        gamma=0.99,
                                        lr=1e-4,
                                        noisy=False,
-                                       train_every=10,
+                                       train_every=15,
                                        save_every=5000,
                                        distributional=False,
                                        masked_actions=True,
