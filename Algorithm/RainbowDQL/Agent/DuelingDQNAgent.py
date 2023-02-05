@@ -41,7 +41,8 @@ class MultiAgentDuelingDQNAgent:
 			log_name="Experiment",
 			save_every=None,
 			train_every=1,
-			masked_actions= False
+			masked_actions= False,
+			seed = 0,
 	):
 		"""
 
@@ -62,6 +63,7 @@ class MultiAgentDuelingDQNAgent:
 		"""
 
 		""" Logging parameters """
+		np.random.seed(seed)
 		self.logdir = logdir
 		self.experiment_name = log_name
 		self.writer = None
