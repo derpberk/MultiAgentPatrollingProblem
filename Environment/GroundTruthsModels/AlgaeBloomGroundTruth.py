@@ -10,9 +10,10 @@ fuelspill_colormap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["d
 
 class algae_bloom:
 
-    def __init__(self, grid: np.ndarray, dt = 0.2) -> None:
+    def __init__(self, grid: np.ndarray, dt = 0.2, seed = 0) -> None:
         """ Generador de ground truths de algas con dinámica """
 
+        np.random.seed(seed)
         # Creamos un mapa vacio #
         self.map = np.zeros_like(grid)
         self.grid = grid

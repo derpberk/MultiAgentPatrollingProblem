@@ -42,7 +42,11 @@ class MultiAgentDuelingDQNAgent:
 			save_every=None,
 			train_every=1,
 			masked_actions= False,
+<<<<<<< HEAD
 			device='cpu'
+=======
+			seed = 0,
+>>>>>>> 4833cd224694a0df275731233edf7332e907d116
 	):
 		"""
 
@@ -63,6 +67,7 @@ class MultiAgentDuelingDQNAgent:
 		"""
 
 		""" Logging parameters """
+		np.random.seed(seed)
 		self.logdir = logdir
 		self.experiment_name = log_name
 		self.writer = None

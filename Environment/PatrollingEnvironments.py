@@ -11,12 +11,14 @@ import matplotlib
 
 background_colormap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["sienna","dodgerblue"])
 
+np.random.seed(0)
 
 class DiscreteVehicle:
 
 	def __init__(self, initial_position, n_actions, movement_length, navigation_map, detection_length):
 		
 		""" Initial positions of the drones """
+		np.random.seed(0)
 		self.initial_position = initial_position
 		self.position = np.copy(initial_position)
 
@@ -34,6 +36,8 @@ class DiscreteVehicle:
 		self.action_space = gym.spaces.Discrete(n_actions)
 		self.angle_set = np.linspace(0, 2 * np.pi, n_actions, endpoint=False)
 		self.movement_length = movement_length
+
+		
 
 	def move(self, action, valid=True):
 		""" Move a vehicle in the direction of the action. If valid is False, the action is not performed. """
@@ -119,7 +123,7 @@ class DiscreteFleet:
 	             optimal_connection_distance=5):
 
 		""" Coordinator of the movements of the fleet. Coordinates the common model, the distance between drones, etc. """
-
+		np.random.seed(0)
 		self.number_of_vehicles = number_of_vehicles
 		self.initial_positions = fleet_initial_positions
 		self.n_actions = n_actions
@@ -306,6 +310,7 @@ class MultiAgentPatrolling(gym.Env):
 		""" The gym environment """
 
 		# Load the scenario map
+		np.random.seed(seed)
 		self.scenario_map = scenario_map
 		self.visitable_locations = np.vstack(np.where(self.scenario_map != 0)).T
 		self.number_of_agents = number_of_vehicles
@@ -352,7 +357,7 @@ class MultiAgentPatrolling(gym.Env):
 		if ground_truth_type == 'shekel':
 			self.gt = GroundTruth(self.scenario_map, max_number_of_peaks=4, is_bounded=True, seed=self.seed)
 		elif ground_truth_type == 'algae_bloom':
-			self.gt = algae_bloom(self.scenario_map)
+			self.gt = algae_bloom(self.scenario_map, seed=self.seed)
 		else:
 			raise NotImplementedError("This Benchmark is not implemented. Choose one that is.")
 		
@@ -618,10 +623,11 @@ class MultiAgentPatrolling(gym.Env):
 					veh.detection_mask.astype(bool)])) for veh in self.fleet.vehicles]
 			)
 		elif self.reward_type == 'model_changes':
+
+
 			rewards = np.array(
-				[np.sum(np.abs(self.model - self.model_ant)[veh.detection_mask.astype(bool)] + self.idleness_matrix[
-					veh.detection_mask.astype(bool)] / (1 * self.detection_length * self.fleet.redundancy_mask[
-					veh.detection_mask.astype(bool)])) for veh in self.fleet.vehicles]
+				[np.sum((np.abs(self.model - self.model_ant)[veh.detection_mask.astype(bool)] + 0.1*self.idleness_matrix[
+					veh.detection_mask.astype(bool)]) / (3.1415 * self.detection_length ** 2  * self.fleet.redundancy_mask[veh.detection_mask.astype(bool)])) for veh in self.fleet.vehicles]
 			)
 
 		
@@ -667,22 +673,23 @@ class MultiAgentPatrolling(gym.Env):
 
 if __name__ == '__main__':
 
+
 	sc_map = np.genfromtxt('Environment/Maps/example_map.csv', delimiter=',')
 
 	N = 4
-	#initial_positions = np.array([[30, 20], [32, 20], [34, 20], [30, 22]])[:N, :]
+	initial_positions = np.array([[30, 20], [32, 20], [34, 20], [30, 22]])[:N, :]
 	visitable = np.column_stack(np.where(sc_map == 1))
-	initial_positions = visitable[np.random.randint(0,len(visitable), size=N), :]
+	#initial_positions = visitable[np.random.randint(0,len(visitable), size=N), :]
 	
 
 	env = MultiAgentPatrolling(scenario_map=sc_map,
 	                           fleet_initial_positions=initial_positions,
 	                           distance_budget=150,
 	                           number_of_vehicles=N,
-	                           seed=10,
+	                           seed=0,
 							   miopic=True,
 	                           detection_length=2,
-	                           movement_length=1,
+	                           movement_length=2,
 	                           max_collisions=500,
 	                           forget_factor=0.5,
 	                           attrittion=0.1,
@@ -700,9 +707,9 @@ if __name__ == '__main__':
 
 	R = []
 
-	action = {i: env.action_space.sample() for i in range(N)}
+	action = {i: np.random.randint(0,8) for i in range(N)}
 
-	while not all(list(done.values())):
+	while not any(list(done.values())):
 
 		for idx, agent in enumerate(env.fleet.vehicles):
 		
@@ -716,8 +723,18 @@ if __name__ == '__main__':
 
 		env.render()
 
+		R.append(list(r.values()))
+
 		print(r)
 
 
 	env.render()
+	plt.show()
+
+	plt.plot(np.cumsum(np.asarray(R),axis=0), '-o')
+	plt.ylim([0, 180])
+	plt.xlabel('Step')
+	plt.ylabel('Individual Reward')
+	plt.legend([f'Agent {i}' for i in range(N)])
+	plt.grid()
 	plt.show()
