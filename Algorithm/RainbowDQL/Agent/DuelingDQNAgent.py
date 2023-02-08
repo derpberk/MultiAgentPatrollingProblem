@@ -42,6 +42,7 @@ class MultiAgentDuelingDQNAgent:
 			save_every=None,
 			train_every=1,
 			masked_actions= False,
+			device='cpu'
 			seed = 0,
 			eval_every = None,
 			eval_episodes = 1000,
@@ -97,7 +98,7 @@ class MultiAgentDuelingDQNAgent:
 		self.masked_actions = masked_actions
 
 		""" Automatic selection of the device """
-		self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+		self.device = device
 
 		print("Selected device: ", self.device)
 
