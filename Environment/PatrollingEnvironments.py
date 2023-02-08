@@ -493,7 +493,8 @@ class MultiAgentPatrolling(gym.Env):
 
 	def step(self, action: dict):
 
-		# Process action movement
+		# Process action movement only for active agents #
+		action = {action_id: action[action_id] for action_id in range(self.number_of_agents) if self.active_agents[action_id]}
 		collision_mask = self.fleet.move(action)
 
 		# Update model #
@@ -732,7 +733,6 @@ if __name__ == '__main__':
 	plt.show()
 
 	plt.plot(np.cumsum(np.asarray(R),axis=0), '-o')
-	plt.ylim([0, 180])
 	plt.xlabel('Step')
 	plt.ylabel('Individual Reward')
 	plt.legend([f'Agent {i}' for i in range(N)])
