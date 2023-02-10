@@ -556,7 +556,7 @@ class MultiAgentPatrolling(gym.Env):
 			self.im0 = self.axs[0].imshow(self.state[agente_disponible][0], cmap = background_colormap)
 			self.axs[0].set_title('Navigation map')
 			# Print the idleness map
-			self.im1 = self.axs[1].imshow(self.state[agente_disponible][1],  cmap = 'jet_r')
+			self.im1 = self.axs[1].imshow(self.state[agente_disponible][1],  cmap = 'rainbow_r')
 			self.axs[1].set_title('Idleness map (W)')
 
 			# Create a background for unknown places #

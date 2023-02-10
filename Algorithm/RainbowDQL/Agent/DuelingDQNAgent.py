@@ -42,7 +42,7 @@ class MultiAgentDuelingDQNAgent:
 			save_every=None,
 			train_every=1,
 			masked_actions= False,
-			device='cpu'
+			device='cpu',
 			seed = 0,
 			eval_every = None,
 			eval_episodes = 1000,

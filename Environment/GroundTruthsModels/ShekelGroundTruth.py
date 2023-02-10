@@ -2,6 +2,9 @@
 import numpy as np
 from deap import benchmarks
 
+import sys
+
+sys.path.append('.')
 
 class GroundTruth(object):
 
@@ -105,7 +108,7 @@ if __name__ == "__main__":
 
     import matplotlib.pyplot as plt
 
-    ypacarai_map = np.genfromtxt('Environment/example_map.csv',delimiter=',',dtype=float)
+    ypacarai_map = np.genfromtxt('Environment/Maps/example_map.csv',delimiter=',',dtype=float)
     gt = GroundTruth(ypacarai_map, max_number_of_peaks=6, is_bounded=True, seed=10)
 
     for i in range(10):
