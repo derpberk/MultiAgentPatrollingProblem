@@ -260,9 +260,13 @@ class MultiAgentDuelingDQNAgent:
 
 		# Optimization steps #
 		steps = 0
-		# Create train logger #
+		
+		# Create train logger and save configs #
 		if self.writer is None:
 			self.writer = SummaryWriter(log_dir=self.logdir, filename_suffix=self.experiment_name)
+			self.write_experiment_config()
+			self.env.save_environment_configuration(self.logdir)
+
 		# Agent in training mode #
 		self.is_eval = False
 		# Reset episode count #
@@ -524,6 +528,37 @@ class MultiAgentDuelingDQNAgent:
 		# Return the average reward, average length
 
 		return total_reward / eval_episodes, total_length / eval_episodes
+
+	def write_experiment_config(self):
+		""" Write experiment and environment variables in a json file """
+
+		self.experiment_config = {
+			"save_every": self.save_every,
+			"eval_every": self.eval_every,
+			"eval_episodes": self.eval_episodes,
+			"num_episodes": self.num_episodes,
+			"batch_size": self.batch_size,
+			"gamma": self.gamma,
+			"tau": self.tau,
+			"lr": self.lr,
+			"update_every": self.update_every,
+			"update_times": self.update_times,
+			"epsilon": self.epsilon,
+			"epsilon_decay": self.epsilon_decay,
+			"epsilon_min": self.epsilon_min,
+			"beta": self.beta,
+			"beta_decay": self.beta_decay,
+			"beta_min": self.beta_min,
+			"num_atoms": self.num_atoms,
+			"v_min": self.v_min,
+			"v_max": self.v_max,
+			"masked_actions": self.masked_actions,
+		}
+
+		with open(self.writer.log_dir + '/experiment_config.json', 'w') as f:
+
+			json.dump(self.experiment_config, f, indent=4)
+
 
 
 
