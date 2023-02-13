@@ -118,6 +118,7 @@ class DiscreteFleet:
 	             n_actions,
 	             fleet_initial_positions,
 	             movement_length,
+				 detection_length,
 	             navigation_map,
 	             max_connection_distance=10,
 	             optimal_connection_distance=5):
@@ -128,13 +129,14 @@ class DiscreteFleet:
 		self.initial_positions = fleet_initial_positions
 		self.n_actions = n_actions
 		self.movement_length = movement_length
+		self.detection_length = detection_length
 
 		""" Create the vehicles object array """
 		self.vehicles = [DiscreteVehicle(initial_position=fleet_initial_positions[k],
 		                                 n_actions=n_actions,
 		                                 movement_length=movement_length,
 		                                 navigation_map=navigation_map,
-		                                 detection_length=movement_length) for k in range(self.number_of_vehicles)]
+		                                 detection_length=detection_length) for k in range(self.number_of_vehicles)]
 
 		self.agent_positions = np.asarray([veh.position for veh in self.vehicles])
 
@@ -303,6 +305,7 @@ class MultiAgentPatrolling(gym.Env):
 	             obstacles=False,
 	             hard_penalization=False,
 				 reward_type='weighted_idleness',
+				 reward_weights = (10.0, 1.0),
 				 ground_truth_type='algae_bloom',
 				 frame_stacking = 0,
 				 state_index_stacking = (0,1,2,3,4)):
@@ -341,19 +344,20 @@ class MultiAgentPatrolling(gym.Env):
 		self.optimal_connection_distance = optimal_connection_distance
 		self.max_connection_distance = max_connection_distance
 		self.movement_length = movement_length
+		self.reward_weights = reward_weights
 		
-
 		# Create the fleets 
 		self.fleet = DiscreteFleet(number_of_vehicles=self.number_of_agents,
 		                           n_actions=8,
 		                           fleet_initial_positions=self.initial_positions,
 		                           movement_length=movement_length,
+								   detection_length=detection_length,
 		                           navigation_map=self.scenario_map,
 		                           max_connection_distance=self.max_connection_distance,
 		                           optimal_connection_distance=self.optimal_connection_distance)
 
 		self.max_collisions = max_collisions
-
+		self.ground_truth_type = ground_truth_type
 		if ground_truth_type == 'shekel':
 			self.gt = GroundTruth(self.scenario_map, max_number_of_peaks=4, is_bounded=True, seed=self.seed)
 		elif ground_truth_type == 'algae_bloom':
@@ -374,6 +378,8 @@ class MultiAgentPatrolling(gym.Env):
 		self.action_space = gym.spaces.Discrete(8)
 
 		assert frame_stacking >= 0, "frame_stacking must be >= 0"
+		self.frame_stacking = frame_stacking
+		self.state_index_stacking = state_index_stacking
 
 		if frame_stacking != 0:
 			self.frame_stacking = MultiAgentTimeStackingMemory(n_agents = self.number_of_agents,
@@ -493,7 +499,8 @@ class MultiAgentPatrolling(gym.Env):
 
 	def step(self, action: dict):
 
-		# Process action movement
+		# Process action movement only for active agents #
+		action = {action_id: action[action_id] for action_id in range(self.number_of_agents) if self.active_agents[action_id]}
 		collision_mask = self.fleet.move(action)
 
 		# Update model #
@@ -527,7 +534,7 @@ class MultiAgentPatrolling(gym.Env):
 		# Update ground truth
 		self.gt.step()
 
-		return self.state if self.frame_stacking is None else self.frame_stacking.process(self.state), reward, done, {}
+		return self.state if self.frame_stacking is None else self.frame_stacking.process(self.state), reward, done, self.info
 
 	def update_model(self):
 		""" Update the model using the new positions """
@@ -555,7 +562,7 @@ class MultiAgentPatrolling(gym.Env):
 			self.im0 = self.axs[0].imshow(self.state[agente_disponible][0], cmap = background_colormap)
 			self.axs[0].set_title('Navigation map')
 			# Print the idleness map
-			self.im1 = self.axs[1].imshow(self.state[agente_disponible][1],  cmap = 'jet_r')
+			self.im1 = self.axs[1].imshow(self.state[agente_disponible][1],  cmap = 'rainbow_r')
 			self.axs[1].set_title('Idleness map (W)')
 
 			# Create a background for unknown places #
@@ -623,14 +630,26 @@ class MultiAgentPatrolling(gym.Env):
 					veh.detection_mask.astype(bool)])) for veh in self.fleet.vehicles]
 			)
 		elif self.reward_type == 'model_changes':
+			
+			changes_in_model = np.abs(self.model - self.model_ant)
+			
+			changes = np.array(
+				[np.sum(
+					changes_in_model[veh.detection_mask.astype(bool)] / self.fleet.redundancy_mask[veh.detection_mask.astype(bool)]
+					) for veh in self.fleet.vehicles
+					]
+				)
 
+			idleness = np.array(
+				[np.sum(
+					self.idleness_matrix[veh.detection_mask.astype(bool)] / self.fleet.redundancy_mask[veh.detection_mask.astype(bool)]
+					) for veh in self.fleet.vehicles
+					]
+				) 
 
-			rewards = np.array(
-				[np.sum((np.abs(self.model - self.model_ant)[veh.detection_mask.astype(bool)] + 0.1*self.idleness_matrix[
-					veh.detection_mask.astype(bool)]) / (3.1415 * self.detection_length ** 2  * self.fleet.redundancy_mask[veh.detection_mask.astype(bool)])) for veh in self.fleet.vehicles]
-			)
+			rewards = self.reward_weights[0] * changes + self.reward_weights[1]*idleness
 
-		
+		self.info = {}
 
 		cost = {agent_id: 1 if action % 2 == 0 else np.sqrt(2) for agent_id, action in actions.items()}
 		rewards = {agent_id: rewards[agent_id]/cost[agent_id] if not collision_mask[agent_id] else -1.0 for agent_id in actions.keys()}
@@ -668,6 +687,33 @@ class MultiAgentPatrolling(gym.Env):
 		# Save the data in the current directory with the given path and name
 		np.save(path + f'_{episode}', self.recording_frames)
 
+	def save_environment_configuration(self, path):
+		""" Save the environment configuration in the current directory as a json file"""
+
+		environment_configuration = {
+
+			'number_of_agents': self.number_of_agents,
+			'miopic': self.miopic,
+			'number_of_vehicles': self.number_of_vehicles,
+			'fleet_initial_positions': self.fleet_initial_positions.tolist(),
+			'distance_budget': self.distance_budget,
+			'detection_length': self.detection_length,
+			'max_number_of_movements': self.max_number_of_movements,
+			'number_of_actions': self.number_of_actions,
+			'forgetting_factor': self.forgetting_factor,
+			'attrition': self.attrition,
+			'reward_type': self.reward_type,
+			'networked_agents': self.networked_agents,
+			'optimal_connection_distance': self.optimal_connection_distance,
+			'max_connection_distance': self.max_connection_distance,
+			'ground_truth': self.ground_truth_type,
+			'frame_stack': self.frame_stack,
+			'frame_stacking': self.frame_stacking,
+			'state_index_stacking': self.state_index_stacking,
+		}
+
+		with open(path + '/environment_config.json', 'w') as f:
+			json.dump(environment_configuration, f)
 
 
 
@@ -684,12 +730,12 @@ if __name__ == '__main__':
 
 	env = MultiAgentPatrolling(scenario_map=sc_map,
 	                           fleet_initial_positions=initial_positions,
-	                           distance_budget=150,
+	                           distance_budget=250,
 	                           number_of_vehicles=N,
 	                           seed=0,
 							   miopic=True,
 	                           detection_length=2,
-	                           movement_length=2,
+	                           movement_length=1,
 	                           max_collisions=500,
 	                           forget_factor=0.5,
 	                           attrittion=0.1,
@@ -698,7 +744,8 @@ if __name__ == '__main__':
 							   ground_truth_type='algae_bloom',
 	                           obstacles=True,
 							   frame_stacking=1,
-							   state_index_stacking=(2,3,4)
+							   state_index_stacking=(2,3,4),
+							   reward_weights=(1.0, 0.1)
 							 )
 
 	env.reset()
@@ -732,7 +779,6 @@ if __name__ == '__main__':
 	plt.show()
 
 	plt.plot(np.cumsum(np.asarray(R),axis=0), '-o')
-	plt.ylim([0, 180])
 	plt.xlabel('Step')
 	plt.ylabel('Individual Reward')
 	plt.legend([f'Agent {i}' for i in range(N)])

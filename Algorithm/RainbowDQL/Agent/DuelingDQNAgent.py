@@ -42,11 +42,10 @@ class MultiAgentDuelingDQNAgent:
 			save_every=None,
 			train_every=1,
 			masked_actions= False,
-<<<<<<< HEAD
-			device='cpu'
-=======
+			device='cpu',
 			seed = 0,
->>>>>>> 4833cd224694a0df275731233edf7332e907d116
+			eval_every = None,
+			eval_episodes = 1000,
 	):
 		"""
 
@@ -72,6 +71,8 @@ class MultiAgentDuelingDQNAgent:
 		self.experiment_name = log_name
 		self.writer = None
 		self.save_every = save_every
+		self.eval_every = eval_every
+		self.eval_episodes = eval_episodes
 
 		""" Observation space dimensions """
 		obs_dim = env.observation_space.shape
@@ -148,11 +149,11 @@ class MultiAgentDuelingDQNAgent:
 	# TODO: Implement an annealed Learning Rate (see:
 	#  https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.ReduceLROnPlateau.html#torch.optim.lr_scheduler.ReduceLROnPlateau)
 
-	def predict_action(self, state: np.ndarray):
+	def predict_action(self, state: np.ndarray, deterministic: bool = False):
 
 		"""Select an action from the input state. If deterministic, no noise is applied. """
 
-		if self.epsilon > np.random.rand() and not self.noisy:
+		if self.epsilon > np.random.rand() and not self.noisy and not deterministic:
 			selected_action = self.env.action_space.sample()
 
 		else:
@@ -161,13 +162,13 @@ class MultiAgentDuelingDQNAgent:
 
 		return selected_action
 
-	def predict_masked_action(self, state: np.ndarray, agent_id: int, position: np.ndarray):
+	def predict_masked_action(self, state: np.ndarray, agent_id: int, position: np.ndarray,  deterministic: bool = False):
 		""" Select an action masked to avoid collisions and so """
 
 		# Update the state of the safety module #
 		self.safe_masking_module.update_state(position = position, new_navigation_map = state[0])
 
-		if self.epsilon > np.random.rand() and not self.noisy:
+		if self.epsilon > np.random.rand() and not self.noisy and not deterministic:
 			
 			# Compute randomly the action #
 			q_values, _ = self.safe_masking_module.mask_action(q_values = None)
@@ -183,15 +184,15 @@ class MultiAgentDuelingDQNAgent:
 		return selected_action
 
 
-	def select_action(self, states: dict) -> dict:
+	def select_action(self, states: dict, deterministic: bool = False) -> dict:
 
-		actions = {agent_id: self.predict_action(state) for agent_id, state in states.items()}
+		actions = {agent_id: self.predict_action(state, deterministic) for agent_id, state in states.items()}
 
 		return actions
 
-	def select_masked_action(self, states: dict, positions: np.ndarray):
+	def select_masked_action(self, states: dict, positions: np.ndarray, deterministic: bool = False):
 
-		actions = {agent_id: self.predict_masked_action(state=state, agent_id=agent_id, position=positions[agent_id]) for agent_id, state in states.items()}
+		actions = {agent_id: self.predict_masked_action(state=state, agent_id=agent_id, position=positions[agent_id], deterministic=deterministic) for agent_id, state in states.items()}
 
 		return actions
 
@@ -259,9 +260,13 @@ class MultiAgentDuelingDQNAgent:
 
 		# Optimization steps #
 		steps = 0
-		# Create train logger #
+		
+		# Create train logger and save configs #
 		if self.writer is None:
 			self.writer = SummaryWriter(log_dir=self.logdir, filename_suffix=self.experiment_name)
+			self.write_experiment_config()
+			self.env.save_environment_configuration(self.logdir)
+
 		# Agent in training mode #
 		self.is_eval = False
 		# Reset episode count #
@@ -372,6 +377,12 @@ class MultiAgentDuelingDQNAgent:
 				if episode % self.save_every == 0:
 					self.save_model(name=f'Episode_{episode}_Policy.pth')
 
+			if self.eval_every is not None:
+				if episode % self.eval_every == 0:
+					mean_reward, mean_length = self.evaluate_env(self.eval_episodes)
+					self.writer.add_scalar('test/accumulated_reward', mean_reward, self.episode)
+					self.writer.add_scalar('test/accumulated_length', mean_length, self.episode)
+
 		# Save the final policy #
 		self.save_model(name='Final_Policy.pth')
 
@@ -472,3 +483,83 @@ class MultiAgentDuelingDQNAgent:
 	def save_model(self, name='experiment.pth'):
 
 		torch.save(self.dqn.state_dict(), self.writer.log_dir + '/' + name)
+
+	def evaluate_env(self, eval_episodes, render=False):
+		""" Evaluate the agent on the environment for a given number of episodes with a deterministic policy """
+
+		self.dqn.eval()
+		total_reward = 0
+		total_length = 0
+
+		for _ in trange(eval_episodes):
+
+			# Reset the environment #
+			state = self.env.reset()
+			if render:
+				self.env.render()
+			done = {agent_id: False for agent_id in range(self.env.number_of_agents)}
+			
+
+			while not all(done.values()):
+
+				total_length += 1
+
+				# Select the action using the current policy
+				if not self.masked_actions:
+					actions = self.select_action(state, deterministic=True)
+				else:
+					actions = self.select_masked_action(states=state, positions=self.env.fleet.get_positions(), deterministic=True)
+					
+				actions = {agent_id: action for agent_id, action in actions.items() if not done[agent_id]}
+
+				# Process the agent step #
+				next_state, reward, done = self.step(actions)
+
+				if render:
+					self.env.render()
+
+				# Update the state #
+				state = next_state
+				
+				total_reward += np.sum(list(reward.values()))
+
+		self.dqn.train()
+
+		# Return the average reward, average length
+
+		return total_reward / eval_episodes, total_length / eval_episodes
+
+	def write_experiment_config(self):
+		""" Write experiment and environment variables in a json file """
+
+		self.experiment_config = {
+			"save_every": self.save_every,
+			"eval_every": self.eval_every,
+			"eval_episodes": self.eval_episodes,
+			"num_episodes": self.num_episodes,
+			"batch_size": self.batch_size,
+			"gamma": self.gamma,
+			"tau": self.tau,
+			"lr": self.lr,
+			"update_every": self.update_every,
+			"update_times": self.update_times,
+			"epsilon": self.epsilon,
+			"epsilon_decay": self.epsilon_decay,
+			"epsilon_min": self.epsilon_min,
+			"beta": self.beta,
+			"beta_decay": self.beta_decay,
+			"beta_min": self.beta_min,
+			"num_atoms": self.num_atoms,
+			"v_min": self.v_min,
+			"v_max": self.v_max,
+			"masked_actions": self.masked_actions,
+		}
+
+		with open(self.writer.log_dir + '/experiment_config.json', 'w') as f:
+
+			json.dump(self.experiment_config, f, indent=4)
+
+
+
+
+

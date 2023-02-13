@@ -26,7 +26,6 @@ env = MultiAgentPatrolling(scenario_map=sc_map,
 	                           networked_agents=False,
 							   reward_type='model_changes',
 							   ground_truth_type='algae_bloom',
-							   ground_truth_type='algae_bloom',
 	                           obstacles=True,
                                frame_stacking = 1,
                                state_index_stacking = (2,3,4))
