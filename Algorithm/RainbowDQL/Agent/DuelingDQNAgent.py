@@ -10,6 +10,8 @@ import torch.nn.functional as F
 from tqdm import trange
 from Algorithm.RainbowDQL.ActionMasking.ActionMaskingUtils import NoGoBackMasking, SafeActionMasking
 import time
+import json
+import os
 
 class MultiAgentDuelingDQNAgent:
 
@@ -263,9 +265,10 @@ class MultiAgentDuelingDQNAgent:
 		
 		# Create train logger and save configs #
 		if self.writer is None:
+			assert not os.path.exists(self.logdir), "El directorio ya existe. He evitado que se sobrescriba"
 			self.writer = SummaryWriter(log_dir=self.logdir, filename_suffix=self.experiment_name)
 			self.write_experiment_config()
-			self.env.save_environment_configuration(self.logdir)
+			self.env.save_environment_configuration(self.logdir if self.logdir is not None else './')
 
 		# Agent in training mode #
 		self.is_eval = False
@@ -536,22 +539,15 @@ class MultiAgentDuelingDQNAgent:
 			"save_every": self.save_every,
 			"eval_every": self.eval_every,
 			"eval_episodes": self.eval_episodes,
-			"num_episodes": self.num_episodes,
 			"batch_size": self.batch_size,
 			"gamma": self.gamma,
 			"tau": self.tau,
-			"lr": self.lr,
-			"update_every": self.update_every,
-			"update_times": self.update_times,
+			"lr": self.learning_rate,
 			"epsilon": self.epsilon,
-			"epsilon_decay": self.epsilon_decay,
-			"epsilon_min": self.epsilon_min,
+			"epsilon_values": self.epsilon_values,
+			"epsilon_interval": self.epsilon_interval,
 			"beta": self.beta,
-			"beta_decay": self.beta_decay,
-			"beta_min": self.beta_min,
 			"num_atoms": self.num_atoms,
-			"v_min": self.v_min,
-			"v_max": self.v_max,
 			"masked_actions": self.masked_actions,
 		}
 

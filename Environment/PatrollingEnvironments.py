@@ -8,6 +8,7 @@ from Environment.GroundTruthsModels.AlgaeBloomGroundTruth import algae_bloom, al
 from Environment.Wrappers.time_stacking_wrapper import MultiAgentTimeStackingMemory
 from scipy.spatial import distance_matrix
 import matplotlib
+import json
 
 background_colormap = matplotlib.colors.LinearSegmentedColormap.from_list("", ["sienna","dodgerblue"])
 
@@ -647,7 +648,7 @@ class MultiAgentPatrolling(gym.Env):
 					]
 				) 
 
-			rewards = self.reward_weights[0] * changes + self.reward_weights[1]*idleness
+			rewards = self.reward_weights[1] * changes + self.reward_weights[0]*idleness
 
 		self.info = {}
 
@@ -694,22 +695,18 @@ class MultiAgentPatrolling(gym.Env):
 
 			'number_of_agents': self.number_of_agents,
 			'miopic': self.miopic,
-			'number_of_vehicles': self.number_of_vehicles,
-			'fleet_initial_positions': self.fleet_initial_positions.tolist(),
+			'fleet_initial_positions': self.initial_positions.tolist(),
 			'distance_budget': self.distance_budget,
 			'detection_length': self.detection_length,
 			'max_number_of_movements': self.max_number_of_movements,
-			'number_of_actions': self.number_of_actions,
-			'forgetting_factor': self.forgetting_factor,
+			'forgetting_factor': self.forget_factor,
 			'attrition': self.attrition,
 			'reward_type': self.reward_type,
 			'networked_agents': self.networked_agents,
 			'optimal_connection_distance': self.optimal_connection_distance,
 			'max_connection_distance': self.max_connection_distance,
 			'ground_truth': self.ground_truth_type,
-			'frame_stack': self.frame_stack,
-			'frame_stacking': self.frame_stacking,
-			'state_index_stacking': self.state_index_stacking,
+			'reward_weights': self.reward_weights
 		}
 
 		with open(path + '/environment_config.json', 'w') as f:
