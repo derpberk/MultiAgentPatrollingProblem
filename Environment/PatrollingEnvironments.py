@@ -115,14 +115,14 @@ class DiscreteVehicle:
 class DiscreteFleet:
 
 	def __init__(self,
-	             number_of_vehicles,
-	             n_actions,
-	             fleet_initial_positions,
-	             movement_length,
+				 number_of_vehicles,
+				 n_actions,
+				 fleet_initial_positions,
+				 movement_length,
 				 detection_length,
-	             navigation_map,
-	             max_connection_distance=10,
-	             optimal_connection_distance=5):
+				 navigation_map,
+				 max_connection_distance=10,
+				 optimal_connection_distance=5):
 
 		""" Coordinator of the movements of the fleet. Coordinates the common model, the distance between drones, etc. """
 		np.random.seed(0)
@@ -134,10 +134,10 @@ class DiscreteFleet:
 
 		""" Create the vehicles object array """
 		self.vehicles = [DiscreteVehicle(initial_position=fleet_initial_positions[k],
-		                                 n_actions=n_actions,
-		                                 movement_length=movement_length,
-		                                 navigation_map=navigation_map,
-		                                 detection_length=detection_length) for k in range(self.number_of_vehicles)]
+										 n_actions=n_actions,
+										 movement_length=movement_length,
+										 navigation_map=navigation_map,
+										 detection_length=detection_length) for k in range(self.number_of_vehicles)]
 
 		self.agent_positions = np.asarray([veh.position for veh in self.vehicles])
 
@@ -220,10 +220,10 @@ class DiscreteFleet:
 	def measure(self, gt_field):
 
 		"""
-        Take a measurement in the given N positions
-        :param gt_field:
-        :return: An numpy array with dims (N,2)
-        """
+		Take a measurement in the given N positions
+		:param gt_field:
+		:return: An numpy array with dims (N,2)
+		"""
 		positions = np.array([self.vehicles[k].position for k in range(self.number_of_vehicles)])
 
 		values = []
@@ -271,7 +271,7 @@ class DiscreteFleet:
 
 	def move_fleet_to_positions(self, goal_list):
 		""" Move the fleet to the given positions.
-         All goal positions must ve valid. """
+		 All goal positions must ve valid. """
 
 		goal_list = np.atleast_2d(goal_list)
 
@@ -289,22 +289,22 @@ class DiscreteFleet:
 class MultiAgentPatrolling(gym.Env):
 
 	def __init__(self, scenario_map,
-	             distance_budget,
-	             number_of_vehicles,
-	             fleet_initial_positions=None,
-	             seed=0,
+				 distance_budget,
+				 number_of_vehicles,
+				 fleet_initial_positions=None,
+				 seed=0,
 				 miopic=True,
-	             detection_length=2,
-	             movement_length=2,
-	             max_collisions=5,
-	             forget_factor=1.0,
-	             networked_agents=False,
-	             max_connection_distance=10,
-	             optimal_connection_distance=5,
-	             max_number_of_disconnections=10,
-	             attrittion=0.0,
-	             obstacles=False,
-	             hard_penalization=False,
+				 detection_length=2,
+				 movement_length=2,
+				 max_collisions=5,
+				 forget_factor=1.0,
+				 networked_agents=False,
+				 max_connection_distance=10,
+				 optimal_connection_distance=5,
+				 max_number_of_disconnections=10,
+				 attrittion=0.0,
+				 obstacles=False,
+				 hard_penalization=False,
 				 reward_type='weighted_idleness',
 				 reward_weights = (10.0, 1.0),
 				 ground_truth_type='algae_bloom',
@@ -349,13 +349,13 @@ class MultiAgentPatrolling(gym.Env):
 		
 		# Create the fleets 
 		self.fleet = DiscreteFleet(number_of_vehicles=self.number_of_agents,
-		                           n_actions=8,
-		                           fleet_initial_positions=self.initial_positions,
-		                           movement_length=movement_length,
+								   n_actions=8,
+								   fleet_initial_positions=self.initial_positions,
+								   movement_length=movement_length,
 								   detection_length=detection_length,
-		                           navigation_map=self.scenario_map,
-		                           max_connection_distance=self.max_connection_distance,
-		                           optimal_connection_distance=self.optimal_connection_distance)
+								   navigation_map=self.scenario_map,
+								   max_connection_distance=self.max_connection_distance,
+								   optimal_connection_distance=self.optimal_connection_distance)
 
 		self.max_collisions = max_collisions
 		self.ground_truth_type = ground_truth_type
@@ -619,10 +619,10 @@ class MultiAgentPatrolling(gym.Env):
 		""" Reward function
 
 			1) weighted_idleness:
-            r(t) = Sum(I(m)*W(m)/Dr(m)) - Pc - Pn
+			r(t) = Sum(I(m)*W(m)/Dr(m)) - Pc - Pn
 			2) model_changes:
 			r(t) = Sum(W(m)/Dr(m)) + |I_t-1(m) - It(m)|/Dr(m)
-        """
+		"""
 
 		if self.reward_type == 'weighted_idleness':
 			rewards = np.array(
@@ -658,7 +658,7 @@ class MultiAgentPatrolling(gym.Env):
 		if self.networked_agents:
 			# For those agents that are too separated from the others (in danger of disconnection)
 			min_distances = np.min(self.fleet.distance_between_agents[self.fleet.danger_of_isolation],
-			                       axis=1) - self.fleet.optimal_connection_distance
+								   axis=1) - self.fleet.optimal_connection_distance
 			# Apply a penalization from 0 to -1 depending on the exceeding distance from the optimal
 
 			rewards[self.fleet.danger_of_isolation] -= np.clip(min_distances / (self.max_connection_distance - self.optimal_connection_distance), 0, 1)
@@ -726,20 +726,20 @@ if __name__ == '__main__':
 	
 
 	env = MultiAgentPatrolling(scenario_map=sc_map,
-	                           fleet_initial_positions=initial_positions,
-	                           distance_budget=250,
-	                           number_of_vehicles=N,
-	                           seed=0,
+							   fleet_initial_positions=initial_positions,
+							   distance_budget=250,
+							   number_of_vehicles=N,
+							   seed=0,
 							   miopic=True,
-	                           detection_length=2,
-	                           movement_length=1,
-	                           max_collisions=500,
-	                           forget_factor=0.5,
-	                           attrittion=0.1,
-	                           networked_agents=False,
+							   detection_length=2,
+							   movement_length=1,
+							   max_collisions=500,
+							   forget_factor=0.5,
+							   attrittion=0.1,
+							   networked_agents=False,
 							   reward_type='model_changes',
 							   ground_truth_type='algae_bloom',
-	                           obstacles=True,
+							   obstacles=True,
 							   frame_stacking=1,
 							   state_index_stacking=(2,3,4),
 							   reward_weights=(1.0, 0.1)

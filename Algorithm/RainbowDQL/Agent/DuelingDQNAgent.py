@@ -184,8 +184,7 @@ class MultiAgentDuelingDQNAgent:
 			self.nogoback_masking_modules[agent_id].update_last_action(selected_action)
 		
 		return selected_action
-
-
+		
 	def select_action(self, states: dict, deterministic: bool = False) -> dict:
 
 		actions = {agent_id: self.predict_action(state, deterministic) for agent_id, state in states.items()}
@@ -296,10 +295,10 @@ class MultiAgentDuelingDQNAgent:
 
 			# Epsilon greedy annealing
 			self.epsilon = self.anneal_epsilon(p=episode / episodes,
-			                                   p_init=self.epsilon_interval[0],
-			                                   p_fin=self.epsilon_interval[1],
-			                                   e_init=self.epsilon_values[0],
-			                                   e_fin=self.epsilon_values[1])
+											   p_init=self.epsilon_interval[0],
+											   p_fin=self.epsilon_interval[1],
+											   e_init=self.epsilon_values[0],
+											   e_fin=self.epsilon_values[1])
 
 			# Run an episode #
 			while not all(done.values()):
@@ -322,11 +321,11 @@ class MultiAgentDuelingDQNAgent:
 
 				# Store every observation for every agent
 					self.transition = [state[agent_id],
-					                   actions[agent_id],
-					                   reward[agent_id],
-					                   next_state[agent_id],
-					                   done[agent_id],
-					                   {}]
+									   actions[agent_id],
+									   reward[agent_id],
+									   next_state[agent_id],
+									   done[agent_id],
+									   {}]
 
 					self.memory.store(*self.transition)
 
