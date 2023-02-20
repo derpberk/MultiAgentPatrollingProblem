@@ -184,7 +184,7 @@ class DiscreteFleet:
 	def move(self, fleet_actions):
 
 		# Check if there are collisions between vehicles #
-		self_colliding_mask = self.check_fleet_collision_within(fleet_actions) + True
+		self_colliding_mask = self.check_fleet_collision_within(fleet_actions)
 		# Process the fleet actions and move the vehicles #
 		collision_array = {k: self.vehicles[k].move(fleet_actions[k], valid=valid) for k, valid in zip(list(fleet_actions.keys()), self_colliding_mask)}
 		# Update vector with agent positions #
